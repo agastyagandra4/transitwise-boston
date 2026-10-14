@@ -63,4 +63,5 @@ def planner_agent(conn, origin_name, dest_name, avoid=None):
         "path": path,
         "stations": [names[s] for s in path],
         "transfers": [names[s] for s in transfers],
+        "transfer_ids": transfers,
     }
