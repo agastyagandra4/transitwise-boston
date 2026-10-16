@@ -10,3 +10,10 @@ def get_connection(user="tejastadla"):
         database="TRANSITWISE_DB",
         schema="RAW",
     )
+import pandas as pd
+
+def query_df(conn, sql, params=None):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    cols = [c[0] for c in cur.description]
+    return pd.DataFrame(cur.fetchall(), columns=cols)

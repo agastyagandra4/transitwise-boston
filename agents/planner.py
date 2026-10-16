@@ -1,19 +1,19 @@
+from agents.db import query_df
 import networkx as nx
 
 _cache = None
 
 
 def build_graph(conn):
-    cur = conn.cursor()
-    stops = cur.execute("""
+    stops = query_df(conn, """
         SELECT rs.ROUTE_ID, rs.STOP_SEQUENCE, rs.STATION_ID, rs.STATION_NAME
         FROM ROUTE_STOPS rs
         JOIN ROUTES r ON r.ROUTE_ID = rs.ROUTE_ID
         WHERE r.ROUTE_TYPE IN (0, 1)
         ORDER BY rs.ROUTE_ID, rs.STOP_SEQUENCE
-    """).fetch_pandas_all()
+    """)
 
-    stations = cur.execute("SELECT * FROM STATIONS").fetch_pandas_all()
+    stations = query_df(conn, "SELECT * FROM STATIONS")
     wc_col = [c for c in stations.columns if c.startswith("WHEELCHAIR")][0]
     accessible = dict(zip(stations["STATION_ID"], stations[wc_col].astype(str) == "1"))
     names = dict(zip(stops["STATION_ID"], stops["STATION_NAME"]))
