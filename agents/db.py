@@ -1,16 +1,22 @@
+import os
+import pandas as pd
 import snowflake.connector
 from getpass import getpass
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def get_connection(user="tejastadla"):
     return snowflake.connector.connect(
         account="VGIFDCN-FU80974",
         user=user,
-        password=getpass("Snowflake password: "),
+        password=os.getenv("SNOWFLAKE_PASSWORD") or getpass("Snowflake password: "),
         warehouse="COMPUTE_WH",
         database="TRANSITWISE_DB",
         schema="RAW",
     )
-import pandas as pd
+
 
 def query_df(conn, sql, params=None):
     cur = conn.cursor()
