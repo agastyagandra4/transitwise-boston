@@ -1,4 +1,8 @@
+import os
 from getpass import getpass
+from dotenv import load_dotenv
+
+load_dotenv()
 
 PROVIDER = "anthropic"   # change to "openai" if your key is an OpenAI key
 _key = None
@@ -7,7 +11,7 @@ _key = None
 def _get_key():
     global _key
     if _key is None:
-        _key = getpass(f"{PROVIDER} API key: ")
+        _key = os.getenv("LLM_API_KEY") or getpass(f"{PROVIDER} API key: ")
     return _key
 
 
