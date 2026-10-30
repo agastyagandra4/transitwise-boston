@@ -4,6 +4,7 @@ from agents.planner import planner_agent
 from agents.checker import checker_agent
 from agents.retriever import search_policies
 from agents.llm import ask_llm
+from agents.logger import log_trip
 
 MIN_POLICY_SCORE = 0.3   # guardrail 2: below this, policy text isn't relevant enough
 
@@ -54,7 +55,7 @@ def _result(plan, problems, new_plan, explanation, sources, guardrails):
 
 # ---------- Replanner ----------
 
-def replanner_agent(conn, origin_name, dest_name, mbta_key, max_tries=3):
+def _replanner(conn, origin_name, dest_name, mbta_key, max_tries=3):
     guardrails = []
 
     # 1. Plan the normal route
@@ -163,3 +164,9 @@ Instructions:
                             + ", ".join(sorted(extra)) + "). Follow the route shown above.")
 
     return _result(plan, problems, final_plan, explanation, sources, guardrails)
+
+def replanner_agent(conn, origin_name, dest_name, mbta_key, max_tries=3, log_source="notebook"):
+       """Run the Replanner and log the result to Snowflake."""
+       result = _replanner(conn, origin_name, dest_name, mbta_key, max_tries)
+       log_trip(conn, origin_name, dest_name, result, source=log_source)
+       return result
