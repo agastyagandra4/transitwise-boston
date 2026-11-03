@@ -15,6 +15,7 @@ def get_connection(user="tejastadla"):
         warehouse="COMPUTE_WH",
         database="TRANSITWISE_DB",
         schema="RAW",
+        login_timeout=30,
     )
 
 
