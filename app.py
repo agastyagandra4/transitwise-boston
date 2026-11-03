@@ -1,26 +1,41 @@
 import os
 import streamlit as st
+from dotenv import load_dotenv
 
 st.set_page_config(page_title="TransitWise Boston", page_icon="♿", layout="centered")
-print("app: starting", flush=True)
-
-from dotenv import load_dotenv
 load_dotenv()
 
+status = st.empty()
+status.info("Starting up…")
+print("app: starting", flush=True)
+
+# ---------- optional password gate ----------
+APP_PASSWORD = os.getenv("APP_PASSWORD")
+if APP_PASSWORD and not st.session_state.get("authed"):
+    status.empty()
+    entered = st.text_input("App password", type="password")
+    if entered == APP_PASSWORD:
+        st.session_state.authed = True
+        st.rerun()
+    st.stop()
+
+# ---------- secrets check ----------
+missing = [k for k in ("SNOWFLAKE_PASSWORD", "MBTA_KEY", "LLM_API_KEY") if not os.getenv(k)]
+if missing:
+    status.empty()
+    st.error("Missing secrets: " + ", ".join(missing))
+    st.stop()
+
+MBTA_KEY = os.getenv("MBTA_KEY")
+
+# ---------- load agents ----------
+status.info("Loading agents…")
 print("app: importing agents", flush=True)
 from agents.db import get_connection
 from agents.planner import build_graph
 from agents.replanner import replanner_agent
 from agents.monitor import start_trip, check_trip
 print("app: agents imported", flush=True)
-
-MBTA_KEY = os.getenv("MBTA_KEY")
-
-# ---------- setup ----------
-missing = [k for k in ("SNOWFLAKE_PASSWORD", "MBTA_KEY", "LLM_API_KEY") if not os.getenv(k)]
-if missing:
-    st.error("Missing in .env: " + ", ".join(missing))
-    st.stop()
 
 
 @st.cache_resource
@@ -38,6 +53,25 @@ def get_stations():
     step_free = {names[s]: accessible.get(s, False) for s in names}
     print("app: graph ready", flush=True)
     return sorted(step_free), step_free
+
+
+status.info("Connecting to Snowflake…")
+conn = get_conn()
+status.info("Building the subway map…")
+stations, step_free = get_stations()
+status.empty()
+
+
+def label(name):
+    return name if step_free.get(name) else f"{name} (not step-free)"
+
+
+def show_route(plan, heading):
+    st.markdown(f"**{heading}** (about {plan['minutes']} min)")
+    st.write(" → ".join(plan["stations"]))
+    if plan["transfers"]:
+        st.caption("Change trains at: " + ", ".join(plan["transfers"]))
+
 
 # ---------- trip input ----------
 st.title("♿ TransitWise Boston")
