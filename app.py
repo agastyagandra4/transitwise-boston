@@ -35,6 +35,7 @@ from agents.db import get_connection
 from agents.planner import build_graph
 from agents.replanner import replanner_agent
 from agents.monitor import start_trip, check_trip
+from agents.request_parser import parse_request, penalty_for
 print("app: agents imported", flush=True)
 
 
@@ -91,6 +92,29 @@ if st.button("Plan step-free trip", type="primary", use_container_width=True):
             st.session_state.result = replanner_agent(conn, origin, dest, MBTA_KEY, log_source="app")
             st.session_state.od = (origin, dest)
             st.session_state.pop("trip", None)
+            st.markdown("**Or describe your trip in your own words**")
+nl_text = st.text_input("Trip request", label_visibility="collapsed",
+                        placeholder="e.g. I use a wheelchair, Kendall to Back Bay, and I hate changing trains")
+if st.button("Understand and plan", use_container_width=True) and nl_text.strip():
+    with st.spinner("Understanding your request..."):
+        parsed = parse_request(nl_text, stations)
+    st.session_state.parsed = parsed
+    if parsed["origin"] and parsed["destination"]:
+        with st.spinner("Planning your route and checking live elevator outages..."):
+            st.session_state.result = replanner_agent(
+                conn, parsed["origin"], parsed["destination"], MBTA_KEY, log_source="app-nl",
+                transfer_penalty=penalty_for(parsed))
+            st.session_state.od = (parsed["origin"], parsed["destination"])
+            st.session_state.pop("trip", None)
+
+p = st.session_state.get("parsed")
+if p:
+    if not (p["origin"] and p["destination"]):
+        st.warning("I couldn't match both stations. Try official station names, or use the dropdowns.")
+    pref = "fewer transfers" if p["fewer_transfers"] >= 0.6 else "fastest route"
+    st.caption(f"Understood: {p['origin']} → {p['destination']}, preference: {pref}"
+               + (f", wants to avoid {', '.join(p['avoid'])}" if p["avoid"] else "")
+               + f" ({p['seconds']} s)")
 
 # ---------- results ----------
 r = st.session_state.get("result")
@@ -153,3 +177,4 @@ if r:
                         st.success(f"{ev['time']}: an outage on your route was resolved.")
                     else:
                         st.info(f"{ev['time']}: no new problems on your route.")
+                        #py -3.12 -m streamlit run app.py

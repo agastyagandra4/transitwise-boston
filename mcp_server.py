@@ -1,3 +1,26 @@
+import os
+from dotenv import load_dotenv
+from mcp.server.fastmcp import FastMCP
+
+load_dotenv()
+
+from agents.db import get_connection
+from agents.planner import planner_agent
+from agents.checker import checker_agent, get_live_alerts
+from agents.retriever import search_policies
+
+mcp = FastMCP("transitwise")
+MBTA_KEY = os.getenv("MBTA_KEY")
+_conn = None
+
+
+def conn():
+    global _conn
+    if _conn is None:
+        _conn = get_connection()
+    return _conn
+
+
 @mcp.tool()
 def plan_route(origin: str, destination: str, avoid: list[str] | None = None) -> dict:
     """Find a step-free MBTA subway route between two stations.
@@ -40,3 +63,8 @@ def search_mbta_policy(question: str, k: int = 4) -> list[dict]:
         return []
     k = max(1, min(k, 10))
     return search_policies(conn(), question.strip()[:500], k=k)
+
+
+if __name__ == "__main__":
+    mcp.run()
+    #py -3.12 mcp_server.py

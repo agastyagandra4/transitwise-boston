@@ -55,11 +55,11 @@ def _result(plan, problems, new_plan, explanation, sources, guardrails):
 
 # ---------- Replanner ----------
 
-def _replanner(conn, origin_name, dest_name, mbta_key, max_tries=3):
+def _replanner(conn, origin_name, dest_name, mbta_key, max_tries=3, transfer_penalty=None):
     guardrails = []
 
     # 1. Plan the normal route
-    plan = planner_agent(conn, origin_name, dest_name)
+    plan = planner_agent(conn, origin_name, dest_name, transfer_penalty=transfer_penalty)
     if not plan["ok"]:
         return {"ok": False, "reason": plan["reason"], "guardrails": guardrails}
 
@@ -81,7 +81,7 @@ def _replanner(conn, origin_name, dest_name, mbta_key, max_tries=3):
     avoid, new_plan, found = [], None, False
     for _ in range(max_tries):
         avoid += [p["station_id"] for p in check["blocking"]]
-        new_plan = planner_agent(conn, origin_name, dest_name, avoid=avoid)
+        new_plan = planner_agent(conn, origin_name, dest_name, avoid=avoid, transfer_penalty=transfer_penalty)
         if not new_plan["ok"]:
             break
         try:
@@ -165,8 +165,9 @@ Instructions:
 
     return _result(plan, problems, final_plan, explanation, sources, guardrails)
 
-def replanner_agent(conn, origin_name, dest_name, mbta_key, max_tries=3, log_source="notebook"):
-       """Run the Replanner and log the result to Snowflake."""
-       result = _replanner(conn, origin_name, dest_name, mbta_key, max_tries)
-       log_trip(conn, origin_name, dest_name, result, source=log_source)
-       return result
+def replanner_agent(conn, origin_name, dest_name, mbta_key, max_tries=3,
+                    log_source="notebook", transfer_penalty=None):
+    """Run the Replanner and log the result to Snowflake."""
+    result = _replanner(conn, origin_name, dest_name, mbta_key, max_tries, transfer_penalty)
+    log_trip(conn, origin_name, dest_name, result, source=log_source)
+    return result

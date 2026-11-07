@@ -78,7 +78,7 @@ def _remove_transfers(graph, station, lines_at):
                 graph.remove_edge((station, lines[i]), (station, lines[j]))
 
 
-def planner_agent(conn, origin_name, dest_name, avoid=None):
+def planner_agent(conn, origin_name, dest_name, avoid=None, transfer_penalty=None):
     global _cache
     if _cache is None:
         _cache = build_graph(conn)
@@ -111,13 +111,18 @@ def planner_agent(conn, origin_name, dest_name, avoid=None):
     for line in lines_at[dest]:
         graph.add_edge((dest, line), "END", minutes=0)
 
+    if transfer_penalty is not None:
+        for _, _, data in graph.edges(data=True):
+            if data.get("kind") == "transfer":
+                data["minutes"] = transfer_penalty
     try:
         nodes = nx.shortest_path(graph, "START", "END", weight="minutes")  # Dijkstra
-        minutes = nx.shortest_path_length(graph, "START", "END", weight="minutes")
+        
     except nx.NetworkXNoPath:
         return {"ok": False, "reason": "No step-free route found avoiding those stations"}
 
     nodes = nodes[1:-1]  # drop START and END
+    minutes = sum(G[a][b]["minutes"] for a, b in zip(nodes, nodes[1:]))
 
     path, station_lines = [], {}
     for s, line in nodes:
